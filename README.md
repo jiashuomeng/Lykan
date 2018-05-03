@@ -1,6 +1,4 @@
-# Lykan
+## [tools](../../tree/master/_tools)
 
-[tools](../../tree/master/_tools)
-
-* [git](_tools/git.md)
+#### [git](_tools/git.md)
 
