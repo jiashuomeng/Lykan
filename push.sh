@@ -1,10 +1,5 @@
 #!/bin/bash
 
-git add .
-
-git commit -m "`date`"
-
-git push origin `git_branch`
 
 function git_branch {
    branch="`git branch 2>/dev/null | grep "^\*" | sed -e "s/^\*\ //"`"
@@ -15,4 +10,10 @@ function git_branch {
        echo $branch
    fi
 }
+
+git add .
+
+git commit -m "`date`"
+
+git push origin `git_branch`
 
