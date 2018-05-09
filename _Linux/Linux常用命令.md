@@ -725,6 +725,13 @@ ctrl+w     切换
 /home/username/.vimrc		普通用户设置vim快捷键
 /root/.vimrc				root用户设置vim快捷键
 
+插入列,例如我们在每一行前都插入"() "：
+	1.光标定位到要操作的地方。
+	2.CTRL+v 进入“可视 块”模式，选取这一列操作多少行。
+	3.SHIFT+i(I) 输入要插入的内容。
+	4.ESC 按两次，会在每行的选定的区域出现插入的内容。
+
+
 vim插件：
 	1>https://github.com/ma6174/vim
 				编写python程序
@@ -1034,7 +1041,6 @@ rpm：
 	--replacepkge                    无论软件包是否已被安装，都强行安装软件包
 
 2>
-
 yum [options] [command] [package ...]
 
 	-h 		帮助
