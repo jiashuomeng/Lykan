@@ -146,6 +146,11 @@ context属性配置
 1. 解析web.xml、创建Wrapper、Filter、ServletContextListener等web容器相关对象
 2. 除了解析web.xml外还会解析Tomcat默认配置、web-fragment.xml（jar包中的web.xml的片段）、ServletContainerInitializer。并对解析结果进行排序
 
+### Wrapper启动
+
+1. 创建servlet实例
+2. 调用servelt的init方法
+
 
 
 
