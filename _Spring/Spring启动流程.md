@@ -1,8 +1,38 @@
 ## Spring容器的refresh()
 
+> 预处理
+
+- 在创建AnnotationConfigApplicationContext时，初始化`beanFactory`（具体在GenericApplicationContext中实现）
+
+  ```java
+  this.beanFactory = new DefaultListableBeanFactory();
+  ```
+
+- 创建 AnnotatedBeanDefinitionReader 关联 AnnotationConfigApplicationContext
+
+  - AnnotatedBeanDefinitionReader 创建时往BeanFactory中注册了以下组件
+
+  ```javascript
+  org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+  
+  org.springframework.context.annotation.internalAutowiredAnnotationProcessor
+  
+  org.springframework.context.annotation.internalRequiredAnnotationProcessor
+  
+  org.springframework.context.annotation.internalCommonAnnotationProcessor
+  
+  org.springframework.context.event.internalEventListenerProcessor
+  
+  org.springframework.context.event.internalEventListenerFactory
+  ```
+
+- 创建 ClassPathBeanDefinitionScanner 关联 AnnotationConfigApplicationContext
+
+- 注册配置类（有 @Configuration 注解的类）
+
+
+
 > 在AbstractApplicationContext类中
-
-
 
 - `prepareRefresh()` 刷新前的预处理
 
@@ -12,11 +42,7 @@
 
 - `obtainFreshBeanFactory();`获取BeanFactory
 
-  - `refreshBeanFactory();`刷新【创建】BeanFactory
-
-    ```
-    this.beanFactory = new DefaultListableBeanFactory()
-    ```
+  - `refreshBeanFactory();`刷新 BeanFactory
 
   - `getBeanFactory();`返回刚才GenericApplicationContext创建的BeanFactory对象
 
@@ -24,16 +50,76 @@
 
 - `prepareBeanFactory(beanFactory);`BeanFactory的预准备工作（BeanFactory进行一些设置）
 
-  - 设置BeanFactory的类加载器、支持表达式解析器...
+  - 设置BeanFactory的类加载器、BeanExpressionResolver、PropertyEditorRegistrar
+
+    ```java
+    beanFactory.setBeanClassLoader(getClassLoader());
+    
+    beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+    
+    beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
+    ```
+
   - 添加部分BeanPostProcessor【ApplicationContextAwareProcessor】
-  - 设置忽略的自动装配的接口EnvironmentAware、EmbeddedValueResolverAware
+
+    ```Java
+    beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+    ```
+
+    这个BeanPostProcessor实际作用：
+
+    ```Java
+    public Object postProcessBeforeInitialization(final Object bean, String beanName) throws BeansException {
+    	invokeAwareInterfaces(bean);
+    	return bean;
+    }
+    
+    private void invokeAwareInterfaces(Object bean) {
+    		if (bean instanceof Aware) {
+    			if (bean instanceof EnvironmentAware) {
+    				((EnvironmentAware) bean).setEnvironment(this.applicationContext.getEnvironment());
+    			}
+    			if (bean instanceof EmbeddedValueResolverAware) {
+    				((EmbeddedValueResolverAware) bean).setEmbeddedValueResolver(this.embeddedValueResolver);
+    			}
+    			if (bean instanceof ResourceLoaderAware) {
+    				((ResourceLoaderAware) bean).setResourceLoader(this.applicationContext);
+    			}
+    			if (bean instanceof ApplicationEventPublisherAware) {
+    				((ApplicationEventPublisherAware) bean).setApplicationEventPublisher(this.applicationContext);
+    			}
+    			if (bean instanceof MessageSourceAware) {
+    				((MessageSourceAware) bean).setMessageSource(this.applicationContext);
+    			}
+    			if (bean instanceof ApplicationContextAware) {
+    				((ApplicationContextAware) bean).setApplicationContext(this.applicationContext);
+    			}
+    		}
+    	}
+    ```
+
+  - 设置忽略的自动装配的接口。被忽略后应用上下文通常会使用其他方式解决依赖关系。例如：ApplicationContext的依赖注入会使用ApplicationContextAware来实现。默认情况下，只有BeanFactoryAware接口被忽略。
+
+    > 被忽略的组件：`EnvironmentAware`, `EmbeddedValueResolverAware`, `ResourceLoaderAware`, `ApplicationEventPublisherAware`, `MessageSourceAware`, `ApplicationContextAware`
+
+    ```java
+    this.ignoredDependencyInterfaces.add(ifc);
+    ```
+
   - 注册可以解析的自动装配；我们能直接在任何组件中自动注入：BeanFactory、ResourceLoader、ApplicationEventPublisher、ApplicationContext
-  - 添加BeanPostProcessor【ApplicationListenerDetector】
-  - 添加编译时的AspectJ
-  - 给BeanFactory中注册一些能用的组件
+
+    ```java
+    this.resolvableDependencies.put(dependencyType, autowiredValue);
+    ```
+
+  - 添加BeanPostProcessor【ApplicationListenerDetector】(负责注册和销毁`ApplicationContext`注册的`ApplicationListener`)
+
+  - 给BeanFactory中注册一些能用的组件（单例Bean）
     - environment【ConfigurableEnvironment】
     - systemProperties【Map<String, Object>】
     - systemEnvironment【Map<String, Object>】
+
+    
 
 - `postProcessBeanFactory(beanFactory);`BeanFactory准备工作完成后进行的后置处理工作；
 
@@ -50,6 +136,11 @@
     ```
     postProcessor.postProcessBeanDefinitionRegistry(registry)
     ```
+    > 在AnnotationConfigApplicationContext初始化时，会有 ConfigurationClassPostProcessor满足这个条件。该类是在 AnnotatedBeanDefinitionReader 创建时注入的，key为：org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+    >
+    > 
+    >
+    > 该类的作用是解析程序启动时传入的被@Configuration注解修饰的配置类。使用 ConfigurationClassParser 的parse方法解析出当前spring容器需要关心bean的BeanDefinition
 
   - 再执行实现了Ordered顺序接口的BeanDefinitionRegistryPostProcessor
 
