@@ -162,14 +162,60 @@
 
   - 最后执行没有实现任何优先级或者是顺序接口的BeanFactoryPostProcessor
 
+  > `BeanFactoryPostProcessor`
+  >
+  > 在应用程序上下文的标准初始化之后修改其内部bean工厂。所有bean定义都已经加载，但是还没有实例化bean。这允许覆盖或添加属性，甚至可以初始化bean
+
+  > `BeanDefinitionRegistryPostProcessor`
+  >
+  > 在标准初始化之后修改应用程序上下文的内部bean定义注册表。所有常规bean定义都已加载，但还没有实例化bean。这允许在下一个后期处理阶段开始之前添加进一步的bean定义
+
+  
+
 - `registerBeanPostProcessors(beanFactory);`注册BeanPostProcessor
 
   > 		不同接口类型的BeanPostProcessor；在Bean创建前后的执行时机是不一样的
-  > 		BeanPostProcessor、
-  > 		DestructionAwareBeanPostProcessor、
-  > 		InstantiationAwareBeanPostProcessor、
-  > 		SmartInstantiationAwareBeanPostProcessor、
-  > 		MergedBeanDefinitionPostProcessor[internalPostProcessors]
+  >
+  > 		```c
+  > 			BeanPostProcessor
+  > 				【 Object postProcessBeforeInitialization(Object bean, String beanName) 】
+  > 				【 Object postProcessAfterInitialization(Object bean, String beanName) 】
+  > 				- DestructionAwareBeanPostProcessor
+  > 					【 void postProcessBeforeDestruction(Object bean, String beanName) 】
+  > 					【 boolean requiresDestruction(Object bean) 】
+  > 				- InstantiationAwareBeanPostProcessor
+  > 					【 Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) 】
+  > 					【 boolean postProcessAfterInstantiation(Object bean, String beanName) 】
+  > 					【 PropertyValues postProcessPropertyValues(PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) 】
+  > 					- SmartInstantiationAwareBeanPostProcessor
+  > 						【 Class<?> predictBeanType(Class<?> beanClass, String beanName) 】
+  > 						【 Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, String beanName) 】
+  > 						【 Object getEarlyBeanReference(Object bean, String beanName) 】
+  > 				- MergedBeanDefinitionPostProcessor[internalPostProcessors]
+  > 					【 void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) 】
+  > 		```
+
+  > 实现MergedBeanDefinitionPostProcessor接口的处理器，可以使用合并过的RootBeanDefinition（由父类BeanDefinition创建RootBeanDefinition，然后使用子类的BeanDefinition覆盖）做一些需要的业务。调用时机在createBeanInstance之后，在populateBean之前
+
+  > DestructionAwareBeanPostProcessor 在Bean注销时会被使用。requiresDestruction方法调用时机：在Bean创建完成后（doCreateBean方法中）调用 registerDisposableBeanIfNecessary(beanName, bean, mbd); 方法时调用，判断是否需要注册到beanFactory【DefaultListableBeanFactory】的注销列表。postProcessBeforeDestruction方法在bean注销时调用。
+
+  > InstantiationAwareBeanPostProcessor 中有三个方法。
+  >
+  > postProcessBeforeInstantiation：该方法是在bean创建之前被调用，是容器给的一个直接返回目标类代理对象的机会 。该方法返回null时，后面的doCreateBean方法继续执行。返回不为null时会调用 postProcessAfterInitialization后直接返回。不会再创建bean
+  >
+  > postProcessAfterInstantiation：该方法是在Bean创建完后，但是还没有设置属性时被执行。默认返回true。如果返回false时会直接将对象返回。不会再进行属性注入的流程
+  >
+  > postProcessPropertyValues：在bean创建之后，属性值还没有设置时调用该方法设置bean的属性值
+
+  > SmartInstantiationAwareBeanPostProcessor有三个方法
+  >
+  > predictBeanType：用于预测目标类的类型。主要用于BeanDefinition无法确定Bean类型时
+  >
+  > determineCandidateConstructors：确认类选择器，该方法在bean创建时调用
+  >
+  > getEarlyBeanReference：在解决循环时会使用到。用于暴露已创建完成的，但是还没有初始化完成的Bean
+
+  
 
   - 获取所有的 BeanPostProcessor;后置处理器都默认可以通过PriorityOrdered、Ordered接口来执行优先级
 
@@ -183,7 +229,7 @@
 
   - 最终重新注册MergedBeanDefinitionPostProcessor
 
-  - 注册一个ApplicationListenerDetector；来在Bean创建完成后检查是否是ApplicationListener，如果是
+  - 注册一个ApplicationListenerDetector；在Bean创建完成后检查是否是ApplicationListener，如果是
 
     ```
     applicationContext.addApplicationListener((ApplicationListener<?>) bean);[]
@@ -226,22 +272,25 @@
     - 不是工厂Bean。利用getBean(beanName);创建对象
 
       - getBean(beanName)； ioc.getBean();
-
       - doGetBean(name, null, null, false);
+
+      ———【AbstractBeanFactory begin】
 
       - 先获取缓存中保存的单实例Bean。如果能获取到说明这个Bean之前被创建过（所有创建过的单实例Bean都会被缓存起来）
 
       - 缓存中获取不到，开始Bean的创建对象流程；
 
-      - 标记当前bean已经被创建
+      - check如果有父容器并且该容器没有加载bean的定义。则使用父容器加载bean
 
       - 获取Bean的定义信息；
 
-      - 获取当前Bean依赖的其他Bean;如果有按照getBean()把依赖的Bean先创建出来；
+      - 获取当前Bean依赖的其他Bean;如果有按照getBean()把依赖的Bean先创建出来；【dependsOn注解】
 
       - 启动单实例Bean的创建流程；
 
         - createBean(beanName, mbd, args);
+
+        ———【AbstractAutowireCapableBeanFactory begin】
 
         - `Object bean = resolveBeforeInstantiation(beanName, mbdToUse);`让BeanPostProcessor先拦截返回代理对象；
 
@@ -268,7 +317,7 @@
             - 拿到InstantiationAwareBeanPostProcessor后置处理器；postProcessAfterInstantiation()；
             - 拿到InstantiationAwareBeanPostProcessor后置处理器；postProcessPropertyValues()；
 
-          - 应用Bean属性的值；为属性利用setter方法等进行赋值；applyPropertyValues(beanName, mbd, bw, pvs);
+            - 应用Bean属性的值；为属性利用setter方法等进行赋值；applyPropertyValues(beanName, mbd, bw, pvs);
 
           - 【Bean初始化】initializeBean(beanName, exposedObject, mbd);
 
