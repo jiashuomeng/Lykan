@@ -176,7 +176,6 @@
 
   > 		不同接口类型的BeanPostProcessor；在Bean创建前后的执行时机是不一样的
   >
-  > 		```c
   > 			BeanPostProcessor
   > 				【 Object postProcessBeforeInitialization(Object bean, String beanName) 】
   > 				【 Object postProcessAfterInitialization(Object bean, String beanName) 】
@@ -193,7 +192,6 @@
   > 						【 Object getEarlyBeanReference(Object bean, String beanName) 】
   > 				- MergedBeanDefinitionPostProcessor[internalPostProcessors]
   > 					【 void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) 】
-  > 		```
 
   > 实现MergedBeanDefinitionPostProcessor接口的处理器，可以使用合并过的RootBeanDefinition（由父类BeanDefinition创建RootBeanDefinition，然后使用子类的BeanDefinition覆盖）做一些需要的业务。调用时机在createBeanInstance之后，在populateBean之前
 
