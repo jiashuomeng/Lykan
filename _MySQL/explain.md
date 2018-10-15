@@ -43,7 +43,7 @@ SQL中使用到的表。它的值也可为下面的其中之一：
 
 　　例：`EXPLAIN SELECT * FROM (SELECT * FROM vip_system_user) b WHERE b.id>57`  
 
-　　　　<img src="/Users/jiashuomeng/work/git/Lykan/images/999999/2016-10-12_111418.png" width="800px" height="60px">
+　　　　<img src="../images/999999/2016-10-12_111418.png" width="800px" height="60px">
 
 - **`<subqueryN>`**: 行引用了一个值为 `N` 的ID的　`materialized subquery`（物化子查询）的结果。
 
@@ -75,14 +75,14 @@ SQL中使用到的表。它的值也可为下面的其中之一：
 
 　　例：`EXPLAIN SELECT u.user_name FROM vip_system_user_role ur LEFT OUTER JOIN vip_system_user u ON ur.sys_user_id=u.id`  
 
-　　　　<img src="/Users/jiashuomeng/work/git/Lykan/images/999999/2016-10-12_131010.png" width="800px" height="60px">  
+　　　　<img src="../images/999999/2016-10-12_131010.png" width="800px" height="60px">  
 
 - **ref**  
   所有索引匹配的行的值与前一张表的所有行的每一种组合。ref用于连接仅使用最左前缀索引或者索引不是主键索引，唯一索引（换句话说，连接不能基于该索引值选择一行 ）。如果索引用于匹配少数行，这是一个好的连接类型。`ref` 能够用于使用 `=` 或者 `<=>` 操作符的索引列中。  
 
 　　例：`EXPLAIN SELECT * FROM vip_system_permission p1 LEFT OUTER JOIN vip_system_permission p2 ON p1.id=p2.parent_id`
 
-　　　　<img src="/Users/jiashuomeng/work/git/Lykan/images/999999/2016-10-12_143115.png" width="800px" height="60px">  
+　　　　<img src="../images/999999/2016-10-12_143115.png" width="800px" height="60px">  
 
 - **fulltext**  
   这个连接使用fulltext索引执行  
