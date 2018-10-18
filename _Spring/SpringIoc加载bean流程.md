@@ -237,15 +237,129 @@ public GenericApplicationContext() {
 
 ###`registerBeanPostProcessors(beanFactory)`
 
+#### 注册顺序
+
+1. 获取所有实现 `BeanPostProcessor`接口的processorName
+2. 按顺序向`beanFactory`中注册实现了`PriorityOrdered`接口的BeanPostProcessor
+3. 按顺序向`beanFactory`中注册实现了`Ordered`接口的BeanPostProcessor
+4. 向`beanFactory`中注册剩下的BeanPostProcessor
+5. 按顺序向`beanFactory`重新注册实现了`MergedBeanDefinitionPostProcessor`接口的bean
+6. 向`beanFactory`中重新注册`ApplicationListenerDetector`
+
+#### BeanPostProcessor家族
+
+---
+
+**BeanPostProcessor继承结构**
+
+> 【 Object postProcessBeforeInitialization(Object bean, String beanName) 】
+>
+> 【 Object postProcessAfterInitialization(Object bean, String beanName) 】
+
+- **DestructionAwareBeanPostProcessor**
+
+  > 【 void postProcessBeforeDestruction(Object bean, String beanName) 】
+  >
+  > 【 boolean requiresDestruction(Object bean) 】
+
+- **InstantiationAwareBeanPostProcessor**
+
+  > 【 Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) 】
+  >
+  > 【 boolean postProcessAfterInstantiation(Object bean, String beanName) 】
+  >
+  > 【 PropertyValues postProcessPropertyValues(PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) 】
+
+  - **SmartInstantiationAwareBeanPostProcessor**
+
+    > 【 Class<?> predictBeanType(Class<?> beanClass, String beanName) 】
+    >
+    > 【 Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, String beanName) 】
+    >
+    > 【 Object getEarlyBeanReference(Object bean, String beanName) 】
+
+- **MergedBeanDefinitionPostProcessor**
+
+  > 【 void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) 】
+
+---
+
+**MergedBeanDefinitionPostProcessor**
+
+- `postProcessMergedBeanDefinition`
+
+  可以使用合并过的RootBeanDefinition（由父类BeanDefinition创建RootBeanDefinition，然后使用子类的BeanDefinition覆盖）做一些需要的业务。调用时机在createBeanInstance之后，在populateBean之前
+
+**DestructionAwareBeanPostProcessor**
+
+- `postProcessBeforeDestruction`
+
+  bean注销时调用
+
+- `requiresDestruction`
+
+  在Bean创建完成后（doCreateBean方法中）调用。调用 `registerDisposableBeanIfNecessary(beanName, bean, mbd); `方法时调用，判断是否需要注册到beanFactory【DefaultListableBeanFactory】的注销列表
+
+**InstantiationAwareBeanPostProcessor**
+
+- `postProcessBeforeInstantiation`
+
+  该方法是在bean创建之前被调用，是容器给的一个直接返回目标类代理对象的机会 。该方法返回null时，后面的doCreateBean方法继续执行。返回不为null时会调用 postProcessAfterInitialization后直接返回。不会再创建bean
+
+- `postProcessAfterInstantiation`
+
+  该方法是在Bean创建完后，但是还没有设置属性时被执行。默认返回true。如果返回false时会直接将对象返回。不会再进行属性注入的流程
+
+- `postProcessPropertyValues`
+
+  在bean创建之后，属性值还没有设置时调用该方法设置bean的属性值
+
+**SmartInstantiationAwareBeanPostProcessor**
+
+- `predictBeanType`
+
+  用于预测目标类的类型。主要用于BeanDefinition无法确定Bean类型时
+
+- `determineCandidateConstructors`
+
+  确认类选择器，该方法在bean创建时调用
+
+- `getEarlyBeanReference`
+
+  在解决循环时会使用到。用于暴露已创建完成的，但是还没有初始化完成的Bean
+
 ###`initMessageSource()`
+
+> 初始化MessageSource组件（做国际化功能；消息绑定，消息解析）
+
+1. 获取BeanFactory
+2. 看容器中是否有id为messageSource的，类型是MessageSource的组件
+3. 如果有赋值给messageSource，如果没有自己创建一个DelegatingMessageSource；MessageSource：取出国际化配置文件中的某个key的值；能按照区域信息获取
+4. 把创建好的MessageSource注册在容器中，以后获取国际化配置文件的值的时候，可以自动注入MessageSource
 
 ###`initApplicationEventMulticaster()`
 
+1. 获取BeanFactory
+2. 从BeanFactory中获取`ApplicationEventMulticaster`事件派发器
+3. 如果上一步没有配置；创建一个`SimpleApplicationEventMulticaster`
+4. 将创建的ApplicationEventMulticaster添加到BeanFactory中
+
 ### `onRefresh()`
+
+> 子类重写，提供扩展
 
 ###`registerListeners()`
 
+1. 从容器中拿到所有的ApplicationListener
+2. 将每个监听器bean名称添加到事件派发器中
+3. 派发`beanFactory`中的`earlyApplicationEvents`列表中的事件
+
 ### `finishBeanFactoryInitialization(beanFactory)`
+
+- 获取容器中的所有Bean，依次进行初始化和创建对象
+- 
+
+ 
 
 ### `finishRefresh();`
 
