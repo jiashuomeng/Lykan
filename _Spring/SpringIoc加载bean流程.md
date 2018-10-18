@@ -235,7 +235,7 @@ public GenericApplicationContext() {
 >
 > 在标准初始化之后修改应用程序上下文的内部bean定义注册表。所有常规bean定义都已加载，但还没有实例化bean。这允许在下一个后期处理阶段开始之前添加进一步的bean定义
 
-###`registerBeanPostProcessors(beanFactory)`  
+### `registerBeanPostProcessors(beanFactory)`  
 
 #### 注册顺序
 
@@ -328,7 +328,7 @@ public GenericApplicationContext() {
 
   在解决循环时会使用到。用于暴露已创建完成的，但是还没有初始化完成的Bean
 
-###`initMessageSource()`  
+### `initMessageSource()`  
 
 > 初始化MessageSource组件（做国际化功能；消息绑定，消息解析）
 
@@ -337,18 +337,18 @@ public GenericApplicationContext() {
 3. 如果有赋值给messageSource，如果没有自己创建一个DelegatingMessageSource；MessageSource：取出国际化配置文件中的某个key的值；能按照区域信息获取
 4. 把创建好的MessageSource注册在容器中，以后获取国际化配置文件的值的时候，可以自动注入MessageSource
 
-###`initApplicationEventMulticaster()`  
+### `initApplicationEventMulticaster()`  
 
 1. 获取BeanFactory
 2. 从BeanFactory中获取`ApplicationEventMulticaster`事件派发器
 3. 如果上一步没有配置；创建一个`SimpleApplicationEventMulticaster`
 4. 将创建的ApplicationEventMulticaster添加到BeanFactory中
 
-### `onRefresh()`
+###  `onRefresh()`
 
 > 子类重写，提供扩展
 
-###`registerListeners()`  
+### `registerListeners()`  
 
 1. 从容器中拿到所有的ApplicationListener
 2. 将每个监听器bean名称添加到事件派发器中
