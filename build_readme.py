@@ -22,8 +22,8 @@ def init_text():
 
 		text.append('## [' + p + '](../../tree/master/_' +  p + ')')
 
-		p = base_path + '/' + PREFIX + p
-		for c in os.listdir(p):
+		pp = base_path + '/' + PREFIX + p
+		for c in os.listdir(pp):
 			text.append('- [' + c[:-3] + '](_' + p + '/' + c + ')  ')
 
 def write_file():
