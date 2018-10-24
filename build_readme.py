@@ -3,9 +3,6 @@
 
 import os
 
-
-PREFIX = '_'
-
 base_path = os.path.abspath('.')
 
 catalogue = []
@@ -14,15 +11,13 @@ text = []
 
 def init_catalogue():
 	for f in os.listdir(base_path):
-	    if f.startswith(PREFIX):
+	    if f.startswith('_'):
 	    	catalogue.append(f[1:])
 
 def init_text():
 	for p in catalogue:
-
 		text.append('## [' + p + '](../../tree/master/_' +  p + ')')
-
-		pp = base_path + '/' + PREFIX + p
+		pp = base_path + '/_' + p
 		for c in os.listdir(pp):
 			if not c.endswith('.md'):
 				continue
