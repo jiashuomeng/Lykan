@@ -9,7 +9,7 @@
 -XX:MaxMetaspaceSize=2048m #  元数据可使用的最大空间
 -XX:SurvivorRatio=8 #  survivor 和 Eden 区比例为1:1:8
 -Xss256k # 单个线程的堆栈大小
--XX:-UseAdaptiveSizePolicy #  自动选择年轻代区大小和相应的Survivor区比例，控制目标系统规定的最低相应时间或者收集频率
+-XX:-UseAdaptiveSizePolicy #  自动选择年轻代区大小和相应的Survivor区比例，控制目标系统规定的最低响应时间或者收集频率
 -XX:+PrintPromotionFailure #  打印晋升失败日志
 -XX:+HeapDumpOnOutOfMemoryError #  导出内存溢出的堆信息(hprof文件)
 -XX:HeapDumpPath=/data/logs/deploy/oom.hprof #  保存路径

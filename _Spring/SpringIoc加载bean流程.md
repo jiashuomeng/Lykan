@@ -350,26 +350,257 @@ public GenericApplicationContext() {
 
 ### `registerListeners()`  
 
-1. 从容器中拿到所有的ApplicationListener
+1. 从容器中拿到所有的`ApplicationListener`
 2. 将每个监听器bean名称添加到事件派发器中
 3. 派发`beanFactory`中的`earlyApplicationEvents`列表中的事件
 
 ### `finishBeanFactoryInitialization(beanFactory)`
 
-- 获取容器中的所有Bean，依次进行初始化和创建对象
-- 
+#### 流程1
 
- 
+> 执行方法： `DefaultListableBeanFactory # preInstantiateSingletons`
 
-### `finishRefresh();`
+- 获取容器中的所有Bean，依次进行初始化。可以被初始化的bean需要符合以下条件
 
+  ```java
+  !bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()
+  ```
 
+- 所有符合条件的bean创建完成后，以此执行实现了`SmartInitializingSingleton`接口的`afterSingletonsInstantiated`方法
 
+  ``` java
+  for (String beanName : beanNames) {
+  	Object singletonInstance = getSingleton(beanName);
+  	if (singletonInstance instanceof SmartInitializingSingleton) {
+  		smartSingleton.afterSingletonsInstantiated();
+  	}
+  }
+  ```
 
+#### 流程2
 
+> 获取容器中的所有Bean，依次进行初始化。
+>
+> 执行方法：`AbstractBeanFactory#doGetBean`
 
+1. 先获取缓存中保存的单实例Bean。如果能获取到说明这个Bean之前被创建过（所有创建过的单实例Bean都会被缓存起来）
 
+2. check如果有父容器并且该容器没有加载bean的定义。则使用父容器加载bean
 
+   ```java
+   parentBeanFactory != null && !containsBeanDefinition(beanName)
+   ```
 
+3. 获取Bean的定义信息
 
+   ``` java
+   final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName)
+   ```
 
+4. 获取当前Bean依赖的其他Bean;如果有按照getBean()把依赖的Bean先创建出来；【dependsOn注解】
+
+   ``` java
+   String[] dependsOn = mbd.getDependsOn();
+   if (dependsOn != null) {
+   	for (String dep : dependsOn) {
+   		registerDependentBean(dep, beanName);
+   		getBean(dep);
+   	}
+   }
+   ```
+
+5. 判断是singleton还是prototype还是其他。已下为singleton的流程
+
+#### 流程3
+
+> 执行方法：AbstractAutowireCapableBeanFactory#createBean
+
+1. 使用 `InstantiationAwareBeanPostProcessor` 可以直接返回bean，无需走后续的创建流程，只走 `postProcessAfterInitialization` 即可
+
+   ``` java
+   // Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+   Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
+   if (bean != null) {
+   	return bean;
+   }
+   
+   ---
+   
+   bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+   if (bean != null) {
+   	bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+   }
+   ```
+
+2. 创建bean
+
+   ```Java
+   Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+   ```
+
+#### 流程4
+
+> 执行方法：AbstractAutowireCapableBeanFactory#doCreateBean
+
+1. 清理cache、 创建bean。创建方式：使用工厂、反射等。还可以使用 `SmartInstantiationAwareBeanPostProcessor` 返回的构造器创建。出现方法的重写时还会使用CGLIB反射创建
+
+   ```java
+   BeanWrapper instanceWrapper = null;
+   if (mbd.isSingleton()) {
+   	instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
+   }
+   if (instanceWrapper == null) {
+   	instanceWrapper = createBeanInstance(beanName, mbd, args);
+   }
+   ```
+
+2. 允许使用 `MergedBeanDefinitionPostProcessor`对 BeanDefinition 进行修改
+
+   ``` java
+   // Allow post-processors to modify the merged bean definition.
+   if (!mbd.postProcessed) {
+       applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
+       mbd.postProcessed = true;
+   }
+   ```
+
+3. 解决可能因为循环引用出现的问题
+
+   ``` java
+   if (earlySingletonExposure) {
+   	addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
+   }
+   
+   protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
+   	Object exposedObject = bean;
+   	for (BeanPostProcessor bp : getBeanPostProcessors()) {
+   		if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
+   			exposedObject = bp.getEarlyBeanReference(exposedObject, beanName);
+   		}
+   	}
+   	return exposedObject;
+   }
+   ```
+
+4. populateBean bean【见流程5】
+
+5. initialize bean【见流程6】
+
+6. 将创建完成的bean注册到 BeanFactory
+
+#### 流程5
+
+> 执行方法：AbstractAutowireCapableBeanFactory#populateBean
+
+1. 判断是不是要跳过字段初始化的流程
+
+   ```java
+   for (BeanPostProcessor bp : getInstantiationAwareBeanPostProcessors()) {
+   	if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
+   		continueWithPropertyPopulation = false;
+   		break;
+   	}
+   }
+   
+   if (!continueWithPropertyPopulation) {
+   	return;
+   }
+   ```
+
+2. 处理autowireByName、autowireByType不过现在一般都不推荐使用了
+
+3. 可以尝试修改 PropertyValues、设置bean的属性
+
+   > 1. `CommonAnnotationBeanPostProcessor`
+   > 2. `AutowiredAnnotationBeanPostProcessor`
+   > 3. `RequiredAnnotationBeanPostProcessor`
+   >
+   > 这三个BeanPostProcessor依次完成了bean的依赖注入、属性解析等功能
+
+   ``` java
+   for (BeanPostProcessor bp : getInstantiationAwareBeanPostProcessors()) {
+   	pvs = bp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
+   	if (pvs == null) {
+   		return;
+   	}
+   }
+   ```
+
+4. 设置属性值，不过这个操作只对配置文件中定义的bean起作用。注解注入bean的属性设置在<3>中几个BeanPostProcessor中完成
+
+#### 流程6
+
+> 执行方法：AbstractAutowireCapableBeanFactory#initializeBean
+
+1. 调用aware方法
+
+   ``` java
+   invokeAwareMethods(beanName, bean);
+   
+   private void invokeAwareMethods(final String beanName, final Object bean) {
+   	if (bean instanceof BeanNameAware) {
+   		((BeanNameAware) bean).setBeanName(beanName);
+   	}
+   	if (bean instanceof BeanClassLoaderAware) {
+   		ClassLoader bcl = getBeanClassLoader();
+   		if (bcl != null) {
+   			((BeanClassLoaderAware) bean).setBeanClassLoader(bcl);
+   		}
+   	}
+   	if (bean instanceof BeanFactoryAware) {
+   		((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
+   	}
+   }
+   ```
+
+2. 执行BeanPostProcessor的前置方法
+
+   ``` java
+   for (BeanPostProcessor beanProcessor : getBeanPostProcessors()) {
+   	Object current = beanProcessor.postProcessBeforeInitialization(result, beanName);
+   	if (current == null) {
+   		return result;
+   	}
+   }
+   ```
+
+3. 执行init方法
+
+   ``` java
+   if (bean instanceof InitializingBean) {
+   
+   	((InitializingBean) bean).afterPropertiesSet();
+   }
+   ```
+
+4. 执行BeanPostProcessor的后置方法
+
+   ``` java
+   for (BeanPostProcessor beanProcessor : getBeanPostProcessors()) {
+   	Object current = beanProcessor.postProcessAfterInitialization(result, beanName);
+   	if (current == null) {
+   		return result;
+   	}
+   }
+   ```
+
+### `finishRefresh()`
+
+``` java
+protected void finishRefresh() {
+	// Clear context-level resource caches (such as ASM metadata from scanning).
+	clearResourceCaches();
+
+	// Initialize lifecycle processor for this context.
+	initLifecycleProcessor();
+
+	// Propagate refresh to lifecycle processor first.
+	getLifecycleProcessor().onRefresh();
+
+	// Publish the final event.
+	publishEvent(new ContextRefreshedEvent(this));
+
+	// Participate in LiveBeansView MBean, if active.
+	LiveBeansView.registerApplicationContext(this);
+}
+```
