@@ -7,7 +7,7 @@
 #### AspectJAutoProxyRegistrar.class
 
  	1. AspectJAutoProxyRegistrar  实现了 ImportBeanDefinitionRegistrar 。可以使用 registerBeanDefinitions 方法注册bean
- 	2. 可以注册  AnnotationAwareAspectJAutoProxyCreator.class 
+		2. 可以注册  AnnotationAwareAspectJAutoProxyCreator.class 
 
 ```
 private static BeanDefinition registerOrEscalateApcAsRequired(Class<?> cls, BeanDefinitionRegistry registry, Object source) {
@@ -225,7 +225,7 @@ AnnotationAwareAspectJAutoProxyCreator.initBeanFactory()
       - 保存到proxyFactory
       - 创建代理对象：Spring自动决定
         - JdkDynamicAopProxy(config);jdk动态代理；
-        - ObjenesisCglibAopProxy(config);cglib的动态代理；		
+        	 ObjenesisCglibAopProxy(config);cglib的动态代理；		
 
    4. 给容器中返回当前组件使用cglib增强了的代理对象；
    5. 以后容器中获取到的就是这个组件的代理对象，执行目标方法的时候，代理对象就会执行通知方法的流程；

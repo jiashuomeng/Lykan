@@ -1,7 +1,3 @@
-
-
-
-
 **SimpleTypeConverter**
 
 - **【C】TypeConverterSupport**
