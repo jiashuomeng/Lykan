@@ -2,7 +2,6 @@
 - [常用](_Note/常用.md)  
 ## [Spring](../../tree/master/_Spring)
 - [注解](_Spring/注解.md)  
-- [ima](_Spring/images)  
 - [springboot_start](_Spring/springboot_start.md)  
 - [conversion_service](_Spring/conversion_service.md)  
 - [IOC原理](_Spring/IOC原理.md)  

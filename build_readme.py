@@ -24,6 +24,8 @@ def init_text():
 
 		pp = base_path + '/' + PREFIX + p
 		for c in os.listdir(pp):
+			if not c.endswith('.md'):
+				continue
 			text.append('- [' + c[:-3] + '](_' + p + '/' + c + ')  ')
 
 def write_file():
