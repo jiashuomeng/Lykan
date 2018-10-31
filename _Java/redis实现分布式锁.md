@@ -1,4 +1,4 @@
-```
+```java
 public boolean lock(String key, long expireTime) {
  
     // 获取到当前时间的毫秒值
