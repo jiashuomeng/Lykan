@@ -257,10 +257,10 @@ config rewrite
     > ``` shell
     > > info clients
     > # Clients
-    > connected_clients:1
-    > client_longest_output_list:0 # 代表输出缓冲区列表最大对象数
-    > client_biggest_input_buf:0 # 代表最大的输入缓冲区
-    > blocked_clients:0
+    > connected_clients:1 # 当前Redis节点的客户端连接数
+    > client_longest_output_list:0 # 当前所有输出缓冲区中队列对象个数的最大值
+    > client_biggest_input_buf:0 # 当前所有输入缓冲区中占用的最大容量
+    > blocked_clients:0 # 正在执行阻塞命令（ 例如blpop、 brpop、brpoplpush） 的客户端个数
     > ```
 
   - **obl、 oll、 omem**：obl代表固定缓冲区的长度（对象个数）。oll代表动态缓冲区列表的长度（对象个数）， omem代表使用的字节数
@@ -299,8 +299,8 @@ config rewrite
 
 - **客户端的限制maxclients和timeout**
 
-  1. 一旦连接数超过maxclients， 新的连接将被拒绝。 maxclients默认值是10000。可以通过info，clients来查询当前Redis的连接数
-  2. 一旦客户端连接的idle时间超过了timeout连接将会被关闭。默认是0
+  1. 一旦连接数超过maxclients， 新的连接将被拒绝。 maxclients默认值是10000。可以通过`info clients`来查询当前Redis的连接数
+  2. 一旦客户端连接的idle时间超过了timeout连接将会被关闭。默认是0不进行检测
   3. 可以通过 `config set maxclients` 对最大客户端连接数进行动态设置
 
 - **client setName、client getName**
@@ -319,4 +319,172 @@ config rewrite
 
 - **monitor**：监控Redis正在执行的命令
 
+- **tcp-keepalive**：检测TCP连接活性的周期， 默认值为0， 也就是不进行检测， 如果需要设置， 建议为60， 那么Redis会每隔60秒对它创建的TCP连接进行活性检测， 防止大量死连接占用系统资源。
+
+- **tcp-backlog**：TCP三次握手后， 会将接受的连接放入队列中， tcp-backlog就是队列的大小， 它在Redis中的默认值是511。在Linux系统中如果/proc/sys/net/core/somaxconn小于tcp-backlog， 那么在Redis启动时会有warn日志，并建议调整Linux配置
+
+- **info stats**：
+
+  ```shell
+  > info stats
+  # Stats
+  total_connections_received:17  # Redis自启动以来处理的客户端连接数总数
+  total_commands_processed:422
+  instantaneous_ops_per_sec:0
+  total_net_input_bytes:10026
+  total_net_output_bytes:48891171
+  instantaneous_input_kbps:0.00
+  instantaneous_output_kbps:0.00
+  rejected_connections:0  # Redis自启动以来拒绝的客户端连接数， 需要重点监控
+  sync_full:0
+  sync_partial_ok:0
+  sync_partial_err:0
+  expired_keys:0
+  evicted_keys:0
+  keyspace_hits:23
+  keyspace_misses:3
+  pubsub_channels:0
+  pubsub_patterns:0
+  latest_fork_usec:4031
+  migrate_cached_sockets:0
+  ```
+
+## 持久化
+
+### RDB
+
+> RDB持久化是把当前进程数据生成快照保存到硬盘的过程， 触发RDB持久化过程分为手动触发和自动触发
+
+#### 触发RDB持久化的时机
+
+- **save**：阻塞当前Redis服务器， 直到RDB过程完成为止， 对于内存比较大的实例会造成长时间阻塞（已废弃）
+- **bgsave**：Redis进程执行fork操作创建子进程， RDB持久化过程由子进程负责， 完成后自动结束。 阻塞只发生在fork阶段， 一般时间很短
+- **save m n**：表示m秒内数据集存在n次修改时， 自动触发bgsave
+- 如果从节点执行全量复制操作， 主节点自动执行bgsave生成RDB文件并发送给从节点
+- 执行debug reload命令重新加载Redis时，会自动触发save操作
+- 默认情况下执行shutdown命令时， 如果没有开启AOF持久化功能则自动执行bgsave
+
+#### bgsave命令的运作流程
+
+![image-20181031210938219](../images/999999/image-20181031210938219.png)
+
+1. 执行bgsave命令， Redis父进程判断当前是否存在正在执行的子进程， 如RDB/AOF子进程， 如果存在bgsave命令直接返回
+2. 父进程执行fork操作创建子进程， fork操作过程中父进程会阻塞， 通过info stats命令查看latest_fork_usec选项， 可以获取最近一个fork操作的耗时， 单位为微秒。
+3. 父进程fork完成后， bgsave命令返回“Background saving started”信息并不再阻塞父进程， 可以继续响应其他命令
+4. 子进程创建RDB文件， 根据父进程内存生成临时快照文件， 完成后对原有文件进行原子替换。 执行lastsave命令可以获取最后一次生成RDB的时间， 对应info统计的rdb_last_save_time选项
+5. 进程发送信号给父进程表示完成， 父进程更新统计信息
+6. RDB文件保存在dir配置指定的目录下， 文件名通过dbfilename配置
+7. Redis默认采用LZF算法对生成的RDB文件做压缩处理， 压缩后的文件远远小于内存大小， 默认开启， 可以通过参数`config set rdbcompression{yes|no}`动态修改
+
+#### 优缺点
+
+##### 优点：
+
+1. RDB是一个紧凑压缩的二进制文件， 代表Redis在某个时间点上的数据快照。 非常适用于备份， 全量复制等场景
+2. Redis加载RDB恢复数据远远快于AOF的方式
+
+##### 缺点：
+
+1. RDB方式数据没办法做到实时持久化/秒级持久化。 因为bgsave每次运行都要执行fork操作创建子进程， 属于重量级操作， 频繁执行成本过高
+2. RDB文件使用特定二进制格式保存，存在兼容性问题
+
+### AOF（ append only file）
+
+> 以独立日志的方式记录每次写命令，重启时再重新执行AOF文件中的命令达到恢复数据的目的。 AOF的主要作用是解决了数据持久化的实时性， 目前已经是Redis持久化的主流方式。
+>
+> 开启AOF功能需要设置配置： appendonly yes， 默认不开启。AOF文件名通过appendfilename配置设置， 默认文件名是appendonly.aof。保存路径同RDB持久化方式一致。
+
+#### 流程
+
+![image-20181031212312437](../images/999999/image-20181031212312437.png)
+
+1. 流程：命令写入（ append） 、 文件同步（ sync） 、 文件重写（ rewrite） 、 重启加载（ load）
+2. 所有的写入命令会追加到aof_buf（ 缓冲区） 中
+3. AOF缓冲区根据对应的策略向硬盘做同步操作
+4. 随着AOF文件越来越大， 需要定期对AOF文件进行重写， 达到压缩的目的
+5. 当Redis服务器重启时， 可以加载AOF文件进行数据恢复
+
+#### 命令写入
+
+- AOF直接采用文本协议
+
+#### 文件同步
+
+- AOF缓冲区同步文件策略
+
+  ![image-20181031212903108](../images/999999/image-20181031212903108.png)
+
+> write操作会触发延迟写（ delayed write） 机制。 Linux在内核提供页缓冲区用来提高硬盘IO性能。 write操作在写入系统缓冲区后直接返回。 同步硬盘操作依赖于系统调度机制， 例如： 缓冲区页空间写满或达到特定时间周期。 同步文件之前， 如果此时系统故障宕机， 缓冲区内数据将丢失
+>
+> fsync针对单个文件操作（ 比如AOF文件） ， 做强制硬盘同步， fsync将阻塞直到写入硬盘完成后返回， 保证了数据持久化
+
+#### 重写机制
+
+> AOF重写降低了文件占用空间， 除此之外， 另一个目的是： 更小的AOF文件可以更快地被Redis加载。
+
+- **手动触发**： 直接调用bgrewriteaof命令
+
+- **自动触发**： 根据auto-aof-rewrite-min-size和auto-aof-rewrite-percentage参数确定自动触发时机
+
+  > auto-aof-rewrite-min-size： 表示运行AOF重写时文件最小体积， 默认为64MB
+  >
+  > auto-aof-rewrite-percentage： 代表当前AOF文件空间（ aof_current_size） 和上一次重写后AOF文件空间（ aof_base_size） 的比值
+  >
+  > 自动触发时机=aof_current_size>auto-aof-rewrite-minsize&&（ aof_current_size-aof_base_size）/aof_base_size>=auto-aof-rewritepercentage
+  >
+  > 其中aof_current_size和aof_base_size可以在info Persistence统计信息中查看
+
+- **AOF重写流程**
+
+  ![image-20181031214004762](../images/999999/image-20181031214004762.png)
+
+  1. 执行AOF重写请求，如果当前进程正在执行AOF重写， 请求不执行并返回
+  2. 如果当前进程正在执行bgsave操作， 重写命令延迟到bgsave完成之后再执行
+  3. 父进程执行fork创建子进程， 开销等同于bgsave过程
+  4. 主进程fork操作完成后， 继续响应其他命令。 所有修改命令依然写入AOF缓冲区并根据appendfsync策略同步到硬盘， 保证原有AOF机制正确性
+  5. 由于fork操作运用写时复制技术， 子进程只能共享fork操作时的内存数据。 由于父进程依然响应命令， Redis使用“AOF重写缓冲区”保存这部分新数据， 防止新AOF文件生成期间丢失这部分数据
+  6. 子进程根据内存快照， 按照命令合并规则写入到新的AOF文件。 每次批量写入硬盘数据量由配置aof-rewrite-incremental-fsync控制， 默认为32MB， 防止单次刷盘数据过多造成硬盘阻塞
+  7. 新AOF文件写入完成后， 子进程发送信号给父进程， 父进程更新统计信息， 具体见info persistence下的aof_*相关统计
+  8. 父进程把AOF重写缓冲区的数据写入到新的AOF文件
+  9. 使用新AOF文件替换老文件， 完成AOF重写
+
+
+#### 重启加载
+
+  ![image-20181031214453642](../images/999999/image-20181031214453642.png)
+
+  1. AOF持久化开启且存在AOF文件时， 优先加载AOF文件
+  2. AOF关闭或者AOF文件不存在时， 加载RDB文件
+  3. 加载AOF/RDB文件成功后， Redis启动成功
+  4. AOF/RDB文件存在错误时， Redis启动失败并打印错误信息
+
+#### 文件校验
+
+> 对于错误格式的AOF文件， 先进行备份， 然后采用redis-check-aof--fix命令进行修复， 修复后使用diff-u对比数据的差异， 找出丢失的数据， 有些可以人工修改补全
+
   
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+
+
