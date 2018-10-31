@@ -181,7 +181,7 @@ config rewrite
   PONG
   ```
 
-- **-i（ interval） **:代表每隔几秒执行一次命令， 但是-i选项必须和-r选项一起使用
+- **-i（interval）**：代表每隔几秒执行一次命令， 但是-i选项必须和-r选项一起使用
 
   ```shell
   $ redis-cli -r 5 -i 1 ping
