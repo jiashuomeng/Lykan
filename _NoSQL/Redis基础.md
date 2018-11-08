@@ -128,6 +128,112 @@
   - **count number**：是可选参数， 它的作用是表明每次要遍历的键个数， 默认值是10， 此参数可以适当增大
 - 删除 当前/全部 库的数据：`flushdb/flushall`
 
+### info
+
+``` shell
+> info
+# Server
+redis_version:3.2.9
+redis_git_sha1:00000000
+redis_git_dirty:0
+redis_build_id:750daee365adb453
+redis_mode:standalone
+os:Linux 3.10.0-514.el7.x86_64 x86_64
+arch_bits:64
+multiplexing_api:epoll
+gcc_version:4.8.5
+process_id:17317
+run_id:dca9d0c6d20014d42b79c06b39807a5a2bcf5982
+tcp_port:6379
+uptime_in_seconds:266588
+uptime_in_days:3
+hz:10
+lru_clock:13413078
+executable:/opt/redis3/./src/redis-server
+config_file:/opt/redis3/redis.conf
+
+# Clients
+connected_clients:1
+client_longest_output_list:0
+client_biggest_input_buf:0
+blocked_clients:0
+
+# Memory
+used_memory:822688 # redis分配器分配的内存总量
+used_memory_human:803.41K # 已可读的形式返回`used_memory`值 
+used_memory_rss:7864320 # 从操作系统的角度来看redis进程占用的内存总量
+used_memory_rss_human:7.50M # 已可读的形式返回`used_memory_rss`值 
+used_memory_peak:885400 # 内存使用的最大值，`used_memory`峰值
+used_memory_peak_human:864.65K # 已可读的形式返回`used_memory_peak`值 
+total_system_memory:1929015296
+total_system_memory_human:1.80G
+used_memory_lua:37888 # Lua引擎使用的内存
+used_memory_lua_human:37.00K # 已可读的形式返回`used_memory_lua`值 
+maxmemory:0
+maxmemory_human:0B
+maxmemory_policy:noeviction
+mem_fragmentation_ratio:9.56 # used_memory_rss/used_memory 内存碎片率
+mem_allocator:jemalloc-4.0.3 # redis使用的内存分配器
+
+# Persistence
+loading:0
+rdb_changes_since_last_save:0
+rdb_bgsave_in_progress:0
+rdb_last_save_time:1539874190
+rdb_last_bgsave_status:ok
+rdb_last_bgsave_time_sec:0
+rdb_current_bgsave_time_sec:-1
+aof_enabled:0
+aof_rewrite_in_progress:0
+aof_rewrite_scheduled:0
+aof_last_rewrite_time_sec:-1
+aof_current_rewrite_time_sec:-1
+aof_last_bgrewrite_status:ok
+aof_last_write_status:ok
+
+# Stats
+total_connections_received:20
+total_commands_processed:430
+instantaneous_ops_per_sec:0
+total_net_input_bytes:10272
+total_net_output_bytes:66888948
+instantaneous_input_kbps:0.00
+instantaneous_output_kbps:0.00
+rejected_connections:0
+sync_full:0
+sync_partial_ok:0
+sync_partial_err:0
+expired_keys:0
+evicted_keys:0
+keyspace_hits:23
+keyspace_misses:3
+pubsub_channels:0
+pubsub_patterns:0
+latest_fork_usec:4031
+migrate_cached_sockets:0
+
+# Replication # 集群相关
+role:master
+connected_slaves:0
+master_repl_offset:0
+repl_backlog_active:0
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:0
+repl_backlog_histlen:0
+
+# CPU
+used_cpu_sys:260.83
+used_cpu_user:110.40
+used_cpu_sys_children:0.00
+used_cpu_user_children:0.00
+
+# Cluster
+cluster_enabled:0
+
+# Keyspace
+db0:keys=6,expires=0,avg_ttl=0
+```
+
 ### 慢查询
 
 1. `slowlog-log-slower-than`。单位微秒（ 1秒=1000毫秒=1000000微秒）。默认值10000
@@ -345,7 +451,7 @@ config rewrite
   keyspace_misses:3
   pubsub_channels:0
   pubsub_patterns:0
-  latest_fork_usec:4031
+  latest_fork_usec:4031 # 最近一次fork操作耗时， 单位微秒
   migrate_cached_sockets:0
   ```
 
@@ -462,29 +568,100 @@ config rewrite
 
 > 对于错误格式的AOF文件， 先进行备份， 然后采用redis-check-aof--fix命令进行修复， 修复后使用diff-u对比数据的差异， 找出丢失的数据， 有些可以人工修改补全
 
-  
+## 复制
 
-  
+### 开启主从复制
 
-  
+1. 在配置文件中加入slaveof{masterHost}{masterPort}随Redis启动生效
+2. 在redis-server启动命令后加入--slaveof{masterHost}{masterPort}生效
+3. 直接使用命令： slaveof{masterHost}{masterPort}生效
 
-  
+### repl-disable-tcp-nodelay
 
-  
+> 用于控制是否关闭TCP_NODELAY， 默认关闭
 
-  
+- 当关闭时， 主节点产生的命令数据无论大小都会及时地发送给从节点， 这样主从之间延迟会变小， 但增加了网络带宽的消耗。 适用于主从之间的网络环境良好的场景， 如同机架或同机房部署
+- 当开启时， 主节点会合并较小的TCP数据包从而节省带宽。 默认发送时间间隔取决于Linux的内核， 一般默认为40毫秒。 这种配置节省了带宽但增大主从之间的延迟。 适用于主从网络环境复杂或带宽紧张的场景， 如跨机房部署
 
-  
+### 复制过程
 
-  
+1. 保存主节点（ master） 信息
 
-  
+   > 执行slaveof后从节点只保存主节点的地址信息便直接返回， 这时建立复制流程还没有开始
 
-  
+   ```shell
+   > info replication
+   
+   master_host:127.0.0.1
+   master_port:6379
+   master_link_status:down # 主节点的连接状态（ master_link_status） 是下线状态
+   ```
 
-  
+2. 与master建立网络连接
 
-  
+   > 从节点（ slave） 内部通过每秒运行的定时任务维护复制相关逻辑，当定时任务发现存在新的主节点后， 会尝试与该节点建立网络连接
+
+3. 发送ping命令
+
+   > - 检测主从之间网络套接字是否可用
+   > - 检测主节点当前是否可接受处理命令
+
+4. 权限验证
+
+   > 如果主节点设置了requirepass参数， 则需要密码验证，从节点必须配置masterauth参数保证与主节点相同的密码才能通过验证； 如果验证失败复制将终止， 从节点重新发起复制流程
+
+5. 同步数据集
+
+   > 对于首次建立复制的场景， 主节点会把持有的数据全部发送给从节点， 这部分操作是耗时最长的步骤
+
+6. 命令持续复制
+
+   > 当主节点把当前的数据同步给从节点后， 便完成了复制的建立流程。 接下来主节点会持续地把写命令发送给从节点， 保证主从数据一致性。
+
+### 数据同步
+
+> Redis在2.8及以上版本使用psync命令完成主从数据同步， 同步过程分为： 全量复制和部分复制
+>
+> psync命令运行需要以下组件支持：
+>
+> - 主从节点各自复制偏移量
+> - 主节点复制积压缓冲区
+> - 主节点运行id
+
+
+
+- **全量复制**：一般用于初次复制场景， Redis早期支持的复制功能只有全量复制， 它会把主节点全部数据一次性发送给从节点， 当数据量较大时， 会对主从节点和网络造成很大的开销
+- **部分复制**：用于处理在主从复制中因网络闪断等原因造成的数据丢失场景， 当从节点再次连上主节点后， 如果条件允许， 主节点会补发丢失数据给从节点。 因为补发的数据远远小于全量数据， 可以有效避免全量复制的过高开销
+
+## 内存
+
+### 自身内存
+
+### 对象内存
+
+### 缓冲内存
+
+#### 客户端缓冲
+
+​	所有接入到Redis服务器TCP连接的输入输出缓冲。输入缓冲无法控制， 最大空间为1G， 如果超过将断开连接。 输出缓冲通过参数client-output-buffer-limit控制。
+
+#### 复制积压缓冲区
+
+​	Redis在2.8版本之后提供了一个可重用的固定大小缓冲区用于实现部分复制功能， 根据repl-backlog-size参数控制， 默认1MB。 对于复制积压缓冲区整个主节点只有一个， 所有的从节点共享此缓冲区， 因此可以设置较大的缓冲区空间， 如100MB， 这部分内存投入是有价值的， 可以有效避免全量复制
+
+#### AOF缓冲区
+
+​	在Redis重写期间保存最近的写入命令。AOF缓冲区空间消耗用户无法控制， 消耗的内存取决于AOF重写时间和写入命令量， 这部分空间占用通常很小
+
+### 内存碎片
+
+- **内存分配**：jemalloc在64位系统中将内存空间划分为： 小、 大、 巨大三个范围。 每个范围内又划分为多个小的内存块单位
+- **解决方式**：数据对齐、安全重启
+- **出现原因**：频繁做更新操作、大量过期键删除
+
+### 子进程消耗
+
+- Redis产生的子进程并不需要消耗1倍的父进程内存， 实际消耗根据期间写入命令量决定， 但是依然要预留出一些内存防止溢出
 
 
 
