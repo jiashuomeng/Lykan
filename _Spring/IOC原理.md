@@ -77,7 +77,7 @@ public GenericApplicationContext() {
 
 1. 关联`AnnotationConfigApplicationContext`
 
-## 注册配置类
+### 注册配置类
 
 > 有 `@Configuration` 注解的类
 
@@ -366,7 +366,7 @@ public GenericApplicationContext() {
   !bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()
   ```
 
-- 所有符合条件的bean创建完成后，以此执行实现了`SmartInitializingSingleton`接口的`afterSingletonsInstantiated`方法
+- 所有符合条件的bean创建完成后，依次执行实现了`SmartInitializingSingleton`接口的`afterSingletonsInstantiated`方法
 
   ``` java
   for (String beanName : beanNames) {
@@ -511,9 +511,9 @@ public GenericApplicationContext() {
 
 3. 可以尝试修改 PropertyValues、设置bean的属性
 
-   > 1. `CommonAnnotationBeanPostProcessor`
-   > 2. `AutowiredAnnotationBeanPostProcessor`
-   > 3. `RequiredAnnotationBeanPostProcessor`
+   > 1. `CommonAnnotationBeanPostProcessor`（提供对Resource、PostConstruct、PreDestroy注解的支持）
+   > 2. `AutowiredAnnotationBeanPostProcessor`（提供对Autowired、Value注解的支持）
+   > 3. `RequiredAnnotationBeanPostProcessor`（提供对Required注解的支持）
    >
    > 这三个BeanPostProcessor依次完成了bean的依赖注入、属性解析等功能
 
