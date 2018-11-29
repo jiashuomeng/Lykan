@@ -62,6 +62,8 @@
    connectionFactory.setProducerWindowSize(102400);
    ```
 
+![image-20181129131338157](../images/999999/image-20181129131338157.png)
+
 ### 事务
 
 1. ActiveMQ支持事务。包括Topic和Queue
@@ -95,11 +97,38 @@
    NON_PERSISTENT Message—Topic：prefetchSize=32766
    ```
 
-4. 非必要情况下，请不要设置prefetchSize=1，因为这样就是一条一条的取数据
+4. 非必要情况下，不要设置prefetchSize=1，因为这样就是一条一条的取数据
 
 5. 也不要设置为prefetchSize=0，因为这将导致关闭服务器端的推送机制，改为客户端主动请求
 
+### 重发和死信队列
+
+- 一条消息再被重发了多次后（默认为重发6次redeliveryCounter==6），将会被ActiveMQ移入“死信队列”
+- 默认情况下“死信队列”只接受`PERSISTENT Message`，如果`NON_PERSISTENT Message`超过了重发上限，将直接被删除
+
+### 消费者策略：ACK
+
+- **AUTO_ACKNOWLEDGE**：这种方式下，当消费者端通过receive方法或者MessageListener监听方式从服务端得到消息后（无论是pul方式还是push方式），消费者连接会话会自动认为消费者端对消息的处理是成功的。但请注意，这种方式下消费者端不一定是向服务端一条一条ACK消息
+- **CLIENT_ACKNOWLEDGE**：这种方式下，当消费者端通过receive方法或者MessageListener监听方式从服务端得到消息后（无论是pul方式还是push方式），必须显示调用消息中的acknowledge方法。如果不这样做，ActiveMQ服务器端将不会认为这条消息处理成功
+- **DUPS_OK_ACKNOWLEDGE**：批量确认方式。消费者端会按照一定的策略向服务器端间隔发送一个ack标示，表示某一批消息已经处理完成。
+- **INDIVIDUAL_ACKNOWLEDGE**：单条确认方式。这种方式是ActiveMQ单独提供的一种方式，其常量定义的位置都不在javax.jms.Session规范接口中，而是在org.apache.activemq.ActiveMQSession这个类中。这种方式消费者端将会逐条向ActiveMQ服务端发送ACK信息。所以这种ACK方式的性能很差，除非有特别的业务要求，否则不建议使用
+
+### 消费者
+
+![image-20181129131533251](../images/999999/image-20181129131533251.png)
 
 
 
+## 总结
 
+- 发送`NON_PERSISTENT Message`和发送`PERSISTENT Message`是有性能差异的。引起这种差异的原因是前者不需要进行持久化存储；但是这样的性能差异在某些情况下会缩小，例如发送`NON_PERSISTENT Message`时，由于消费者性能不够导致消息堆积，这时`NON_PERSISTENT Message`会被转储到物理磁盘上的“temp store”区域
+- 发送带有事务的消息和发送不带有事务的消息，在服务器端的处理性能也是有显著区别的。引起这种差异的原因是带有事务的消息会首先记录在服务器端的“transaction store”区域，并且服务器端会带有redo日志，这样保证发送者端在发送commit指令或者rollback指令时，服务器会完整相应的处理
+- ActiveMQ中，为消息生产者所设定的`ProducerFlowControl`策略非常重要，它确定消息在ActiveMQ服务端产生大量堆积的情况下，ActiveMQ将减缓接收消息，保证了ActiveMQ能够稳定的工作。可以通过配置文件设置`ProducerFlowControl`策略的生效阀值，甚至可以关闭`ProducerFlowControl`策略（当然不建议这样做）
+- 消息生产者端和消息消费者端都可以通过“异步”方式和服务器进行通讯（但是意义不一样）。在生产者端发送异步消息，一定要和`ProducerWindowSize`（回执窗口期）的设置共同使用；在消费者异步接受消息时，要记住有`Prefetch`这个关键的预取数值，并且`PrefetchSize`在非必要情况下不要设置为1。很显然适合的`PrefetchSize`将改善服务端和消费者端的性能
+- JMS规范中，消息消费者端也是支持事务的。所谓消费者端的事务是指：一组消息要么全部被commit（这时消费者会向服务端发送ACK表示），要么全部被rollback（这时同一个消费者端会向自己重发这些消息，并且这些消息的`redeliveryCounter`属性+1）；进行消息的重发是非常消耗消费者端性能的一件事情，这是因为在这个连接会话中，被Prefetch但是还没有被处理的消息将一直等待重发的消息最终被确认
+- 为了避免带有错误业务信息的消息被无止境的重发，从而影响整个消息系统的性能。在ActiveMQ中为超过`MaximumRedeliveries`阀值（默认值为6，但是很明显默认值太高了，建议设置为3）的消息准备了“死信队列”
+- 只有服务器收到了一条或者一组消息的ACK标示，才会认为这条或者这组消息被成功过的处理了。在消费者端有4种ACK工作模式，建议优先选择AUTO_ACKNOWLEDGE。如果这样做了，那么请一定重新改小预取数量、设置OptimizeAcknowledge为true、重设OptimizeAcknowledgeTimeOut时间。这样才能保证AUTO_ACKNOWLEDGE方式工作在“延迟确认”模式下，以便优化ACK性能
+
+
+
+> [原文](https://blog.csdn.net/yinwenjie/article/details/50991443)
