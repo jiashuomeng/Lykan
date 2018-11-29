@@ -127,7 +127,7 @@
 - 消息生产者端和消息消费者端都可以通过“异步”方式和服务器进行通讯（但是意义不一样）。在生产者端发送异步消息，一定要和`ProducerWindowSize`（回执窗口期）的设置共同使用；在消费者异步接受消息时，要记住有`Prefetch`这个关键的预取数值，并且`PrefetchSize`在非必要情况下不要设置为1。很显然适合的`PrefetchSize`将改善服务端和消费者端的性能
 - JMS规范中，消息消费者端也是支持事务的。所谓消费者端的事务是指：一组消息要么全部被commit（这时消费者会向服务端发送ACK表示），要么全部被rollback（这时同一个消费者端会向自己重发这些消息，并且这些消息的`redeliveryCounter`属性+1）；进行消息的重发是非常消耗消费者端性能的一件事情，这是因为在这个连接会话中，被Prefetch但是还没有被处理的消息将一直等待重发的消息最终被确认
 - 为了避免带有错误业务信息的消息被无止境的重发，从而影响整个消息系统的性能。在ActiveMQ中为超过`MaximumRedeliveries`阀值（默认值为6，但是很明显默认值太高了，建议设置为3）的消息准备了“死信队列”
-- 只有服务器收到了一条或者一组消息的ACK标示，才会认为这条或者这组消息被成功过的处理了。在消费者端有4种ACK工作模式，建议优先选择AUTO_ACKNOWLEDGE。如果这样做了，那么请一定重新改小预取数量、设置OptimizeAcknowledge为true、重设OptimizeAcknowledgeTimeOut时间。这样才能保证AUTO_ACKNOWLEDGE方式工作在“延迟确认”模式下，以便优化ACK性能
+- 只有服务器收到了一条或者一组消息的ACK标示，才会认为这条或者这组消息被成功过的处理了。在消费者端有4种ACK工作模式，建议优先选择`AUTO_ACKNOWLEDGE`。如果这样做了，那么请一定重新改小预取数量、设置`OptimizeAcknowledge`为true、重设`OptimizeAcknowledgeTimeOut`时间。这样才能保证`AUTO_ACKNOWLEDGE`方式工作在“延迟确认”模式下，以便优化ACK性能
 
 
 
