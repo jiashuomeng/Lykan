@@ -321,6 +321,9 @@ io.netty.channel.AbstractChannelHandlerContext # fireChannelRead
 	}
 	[to -> 5] invokeChannelRead((ChannelHandlerContext)ctx, (NioSocketChannel)msg);
 }
+
+10. 
+io.netty.bootstrap.ServerBootstrap.ServerBootstrapAcceptor # channelRead
 ```
 
 ## ChannelHandler
