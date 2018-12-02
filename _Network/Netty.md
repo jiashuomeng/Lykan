@@ -215,25 +215,137 @@ EventLoopGroup workerGroup = new NioEventLoopGroup(NettyRuntime.availableProcess
 
    4. `pipeline.fireChannelRegistered();`
 
+## 请求处理流程
+
+``` java
+1. 
+io.netty.channel.nio.NioEventLoop # processSelectedKeys
+
+2. 
+io.netty.channel.nio.NioEventLoop # processSelectedKeysOptimized
+{
+	for (int i = 0; i < selectedKeys.size; ++i) {
+
+	    final SelectionKey k = selectedKeys.keys[i];
+	    selectedKeys.keys[i] = null;
+
+	    final Object a = k.attachment();
+
+	    ╋ processSelectedKey(k, (AbstractNioChannel) a);
+	}
+}
+
+3.
+io.netty.channel.nio.NioEventLoop # processSelectedKey
+{
+	int readyOps = k.readyOps();
+	if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
+	    ╋ unsafe.read();
+	}
+}
+
+4. 
+io.netty.channel.nio.AbstractNioMessageChannel.NioMessageUnsafe # read
+{
+	private final List<Object> readBuf = new ArrayList<Object>();
+	
+	doReadMessages(readBuf);
+        {
+            SocketChannel ch = SocketUtils.accept(javaChannel());
+            if (ch != null) {
+                buf.add(new NioSocketChannel(this, ch));
+                return 1;
+            }
+        }
+}
+{
+	int size = readBuf.size();
+	for (int i = 0; i < size; i ++) {
+	    readPending = false;
+	    ╋ pipeline.fireChannelRead(readBuf.get(i));
+	}
+	readBuf.clear();
+	allocHandle.readComplete();
+	pipeline.fireChannelReadComplete();
+
+	if (exception != null) {
+	    closed = closeOnReadError(exception);
+	    pipeline.fireExceptionCaught(exception);
+	}
+
+	if (closed) {
+	    close(voidPromise());
+	}
+}
+
+5.
+╋ io.netty.channel.DefaultChannelPipeline # fireChannelRead
+
+6. 
+io.netty.channel.AbstractChannelHandlerContext # invokeChannelRead((ChannelHandlerContext)context,  (NioSocketChannel)msg);
+{
+	EventExecutor executor = context.executor();
+	if (executor.inEventLoop()) {
+	    ╋ context.invokeChannelRead(msg);
+	} else {
+	    executor.execute(new Runnable() {
+	        @Override
+	        public void run() {
+	            context.invokeChannelRead(msg);
+	        }
+	    });
+	}
+}
+
+7. 
+io.netty.channel.AbstractChannelHandlerContext # invokeChannelRead
+{
+	╋ ((ChannelInboundHandler) handler()).channelRead(this, msg);
+}
+
+8.
+io.netty.channel.DefaultChannelPipeline.HeadContext # channelRead
+{
+	╋ io.netty.channel.ChannelHandlerContext # fireChannelRead
+}
+
+9.
+io.netty.channel.AbstractChannelHandlerContext # fireChannelRead
+{
+	AbstractChannelHandlerContext context = findContextInbound(){
+	    AbstractChannelHandlerContext ctx = this;
+	    do {
+	        ctx = ctx.next;
+	    } while (!ctx.inbound);
+	    return ctx;
+	}
+	[to -> 5] invokeChannelRead((ChannelHandlerContext)ctx, (NioSocketChannel)msg);
+}
+```
+
 ## ChannelHandler
 
 ### ChannelHandler执行顺序
 
 #### 建立连接
 
-#####1. channelRegistered
+#####1. handlerAdded
+
+> 添加handler
+
+#####2. channelRegistered
 
 > 链路注册
 
-#####2. channelActive
+#####3. channelActive
 
 > 链路激活
 
-#####3. channelRead
+#####4. channelRead
 
 > 接收到请求消息
 
-#####4. channelReadComplete
+#####5. channelReadComplete
 
 > 请求消息接收并处理完毕
 
