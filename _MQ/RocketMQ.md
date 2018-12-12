@@ -16,7 +16,7 @@
 
 #### Producer
 
-> 不同的业务场景需要生产者采用不同的写人策略 。 比如同步发送、异步发送、 延迟发送、 发送事务消息等
+> 不同的业务场景需要生产者采用不同的写入策略 。 比如同步发送、异步发送、 延迟发送、 发送事务消息等
 
 **DefaultMQProducer**
 
@@ -36,7 +36,7 @@
 
 **消息发送的返回状态**
 
-- **FLUSH_DISK_TIMEOUT：**表示没有在规定时间内完成刷盘（需要Broker的刷盘策略被设置成 `SYNC_FLUSH` 才会报这个错误） 
+- **FLUSH_DISK_TIMEOUT**：表示没有在规定时间内完成刷盘（需要Broker的刷盘策略被设置成 `SYNC_FLUSH` 才会报这个错误） 
 - **FLUSH_SLAVE_TIMEOUT**：表示在主备方式下，并且 Broker 被设置成 `SYNC_MASTER` 方式，没有在设定时间内完成主从同步
 - **SLAVE_NOT_AVAILABLE**：这个状态产生的场景和 FLUSH_SLAVE_TIMEOUT类似， 表示在主备方式下，并且 Broker 被设置成 `SYNC_MASTER`。但是没有找到被配置成 Slave 的 Broker
 - **SEND_OK**：表示发送成功，发送成功的具体含义，比如消息是否已经被存储到磁盘？消息是否被同步到了 Slave 上？消息在 Slave 上是否被写人磁盘？需要结合所配置的刷盘策略、主从策略来定。
