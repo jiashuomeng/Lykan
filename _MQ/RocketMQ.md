@@ -45,7 +45,7 @@
 
 **发送延迟消息**
 
-> Broker 收到这类 消 息后 ，延迟一段时间再处理 ， 使消息在规定的一段时间后生效
+> Broker 收到这类消息后 ，延迟一段时间再处理 ， 使消息在规定的一段时间后生效
 
 ​	延迟消息的使用方法是在创建 Message 对象时，调用 setDelayTimeLevel ( int level ） 方法设置延迟时间。目前延迟的时间不支持任意设置，仅支持预设值的时间长度（ 1s/5s/10s/30s/1m/2m/3m/4m/5m/6m/7m/8m/9m/10m/20m/30m/1h/2h ） 。 比如 setDelayTimeLevel(3) 表示延迟 10s
 
@@ -110,7 +110,7 @@ RocketMQ 中 `TransactionMQProducer` 采用两阶段提交的方式实现事务�
 
 - **长轮询**
 
-  - 使用 `PullRequest` “长轮询” 方式达到 **push** 效果。长轮询方式既有Pull的优点，又兼具Push方式的实时性=
+  - 使用 `PullRequest` “长轮询” 方式达到 **push** 效果。长轮询方式既有Pull的优点，又兼具Push方式的实时性
   - Broker 在没有新消息的时候才阻塞，有消息会立刻返回
   - 服务端接到新消息请求后，如果队列里没有新消息，并不急于返回，通过一个循环不断查看状态，每次 waitForRunning一段时间（默认是 5 秒），然后再Check。默认情况下当 Broker 一直没有新消息，第三次 Check 的时候，等待时间超过 Request 里面的 BrokerSuspendMaxTimeMillis， 就返回空结果
   - 在HOLD住 Consumer 请求的时候需要占用资源，适合用在消息队列这种客户端连接数可控的场景中
@@ -160,7 +160,7 @@ RocketMQ 中 `TransactionMQProducer` 采用两阶段提交的方式实现事务�
 
 ### 消息模型
 
-- 一个 Topic 可以根据需求设置一个或多个 Message Queue, Message Queue 类似分区或 Partition 。 Topic 有 了 多个 Message Queue 后，消息可以并行地向各个Message Queue 发送，消费者也可以并行地从多个 Message Queue 读取消息并消费
+- 一个 Topic 可以根据需求设置一个或多个 Message Queue, Message Queue 类似分区或 Partition 。 Topic 有了多个Message Queue 后，消息可以并行地向各个Message Queue 发送，消费者也可以并行地从多个 Message Queue 读取消息并消费
 
 #### 协议
 
@@ -200,18 +200,18 @@ tmp_buf 是预先申请的内存，这两个看似简单的操作，实际进行
 **好处**
 
 - CommitLog 顺序写 ，可以大大提高写人效率 
-- 虽然是随机读，但是利用操作系统的 pagecache 机制，可以批量地从磁盘读取，作为 cache 存到 内存中，加速后续的读取速度
+- 虽然是随机读，但是利用操作系统的 pagecache 机制，可以批量地从磁盘读取，作为 cache 存到内存中，加速后续的读取速度
 - 为了保证完全的顺序写，需要 ConsumeQueue 这个中间结构，因为ConsumeQueue 里只存偏移量信息，所以尺寸是有限的，在实际情况中，大部分的 ConsumeQueue 能够被全部读人内存
 
 > 为了保证 CommitLog 和 ConsumeQueue 的一致性， CommitLog 里存储了 Consume Queues 、 Message key、 Tag 等所有信息即使 ConsumeQueue 丢失，也可以通过 commitLog 完全恢复出来
 
 #### 高可用性机制
 
-- brokerId 的值为 0 表明这个 Broker 是 Master，大于 0 表 明这个 Broker 是 Slave 
+- brokerId 的值为 0 表明这个 Broker 是 Master，大于 0 表明这个 Broker 是 Slave 
 - RocketMQ 是master可读写，slaver只读。在master繁忙时是slaver自动承担读流量
 - 当一个 Master 角色的机器出现故障后，Consumer 仍然可以从 Slave 读取消息，不影响 Consumer 程序 。 这就达到了消费端的高可用性 
 - 在创建 Topic 的时候，把 Topic 的多个Message Queue 创建在多个 Broker 组上。这样当 一个 Broker 组的 Master 不可用后，其他组的 Master 仍然可用， Producer 仍然可以发送消息
-- RocketMQ 目前还不支持把Slave 自动转成 Master Slave。需要转成 Master 时需手动停止 Slave 角色的 Broker ，更改配置文件，用新的配置文件启动 Broker
+- RocketMQ 目前还不支持把Slave 自动转成 Master。需要转成 Master 时手动停止 Slave 角色的 Broker ，更改配置文件，用新的配置文件启动 Broker
 
 ### 配置参数
 
