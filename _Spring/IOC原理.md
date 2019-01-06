@@ -604,3 +604,10 @@ protected void finishRefresh() {
 	LiveBeansView.registerApplicationContext(this);
 }
 ```
+## 结构图
+
+![image-20181227114044760](../images/999999/image-20181227114044760.png)
+
+![image-20181227114425016](../images/999999/image-20181227114425016.png)
+
+![image-20181227115207476](../images/999999/image-20181227115207476.png)

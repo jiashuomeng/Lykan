@@ -28,3 +28,60 @@
 -Dspring.profiles.active=prod
 ```
 
+``` shell
+/opt/jdk8/bin/java 
+-server 
+-Xms256m 
+-Xmx256m 
+-Xmn96m 
+-XX:+UseG1GC 
+-XX:G1HeapRegionSize=16m 
+-XX:G1ReservePercent=25 
+-XX:InitiatingHeapOccupancyPercent=30 
+-XX:SoftRefLRUPolicyMSPerMB=0 
+-XX:SurvivorRatio=8 
+-verbose:gc 
+-Xloggc:/dev/shm/mq_gc_%p.log 
+-XX:+PrintGCDetails 
+-XX:+PrintGCDateStamps 
+-XX:+PrintGCApplicationStoppedTime 
+-XX:+PrintAdaptiveSizePolicy 
+-XX:+UseGCLogFileRotation 
+-XX:NumberOfGCLogFiles=5 
+-XX:GCLogFileSize=30m 
+-XX:-OmitStackTraceInFastThrow 
+-XX:+AlwaysPreTouch 
+-XX:MaxDirectMemorySize=15g 
+-XX:-UseLargePages 
+-XX:-UseBiasedLocking 
+-Djava.ext.dirs=/opt/jdk8/jre/lib/ext:/opt/rocketmq4.2/bin/../lib 
+-cp .:/opt/rocketmq4.2/bin/../conf: 
+org.apache.rocketmq.broker.BrokerStartup -n 192.168.56.101:9876 -c ./conf/broker-run.properties
+```
+
+``` shell
+/opt/jdk8/bin/java 
+-server 
+-Xms4g 
+-Xmx4g 
+-Xmn2g 
+-XX:MetaspaceSize=128m 
+-XX:MaxMetaspaceSize=320m 
+-XX:+UseConcMarkSweepGC 
+-XX:+UseCMSCompactAtFullCollection 
+-XX:CMSInitiatingOccupancyFraction=70 
+-XX:+CMSParallelRemarkEnabled 
+-XX:SoftRefLRUPolicyMSPerMB=0 
+-XX:+CMSClassUnloadingEnabled 
+-XX:SurvivorRatio=8 
+-XX:-UseParNewGC 
+-verbose:gc 
+-Xloggc:/dev/shm/rmq_srv_gc.log 
+-XX:+PrintGCDetails 
+-XX:-OmitStackTraceInFastThrow 
+-XX:-UseLargePages 
+-Djava.ext.dirs=/opt/jdk8/jre/lib/ext:/opt/rocketmq4.2/bin/../lib 
+-cp .:/opt/rocketmq4.2/bin/../conf: 
+org.apache.rocketmq.namesrv.NamesrvStartup
+```
+
