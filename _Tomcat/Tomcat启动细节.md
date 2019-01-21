@@ -150,10 +150,3 @@ context属性配置
 
 1. 创建servlet实例
 2. 调用servelt的init方法
-
-
-
-
-
-
-
