@@ -106,3 +106,18 @@ try {
 - 每次都要调用`methodInterceptor.invoke(this)`，this代表`ReflectiveMethodInvocation`
 - `MethodInterceptor`的invoke方法会定义通知的策略，然后调用`methodInterceptor.proceed()`传递到下一个链表节点
 - `ReflectiveMethodInvocation`的`process`定义了递归出口，只要index值增加到`list.size()-1`就会执行目标方法，继续后续的反向调用
+
+**前置通知源码逻辑如下**
+
+> ```java
+> MethodBeforeAdviceInterceptor implements MethodInterceptor
+> ```
+
+``` java
+@Override
+public Object invoke(MethodInvocation mi) throws Throwable {
+    this.advice.before(mi.getMethod(), mi.getArguments(), mi.getThis());
+    return mi.proceed();
+}
+```
+
