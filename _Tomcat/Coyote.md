@@ -17,7 +17,7 @@
 #### 做了什么
 
  	1. 创建 CoyoteAdapter 建立 ProtocolHandler 与 CoyoteAdapter 的关联关系
- 	2. 调用 ProtocolHandler 的 init() 方法。正常情况下 ProtocolHandler 的实现类是 Http11NioProtocol
+		2. 调用 ProtocolHandler 的 init() 方法。正常情况下 ProtocolHandler 的实现类是 Http11NioProtocol
      - 设置 endpoint 的 name、domain等信息
      - 调用 endpoint（NioEndpoint） 的 init() 方法
        - 创建 ServerSocketChannel
@@ -54,6 +54,26 @@
       - 创建  Poller（实现Runnable接口） 数组，默认为2个，分别调用其 start() 方法
       - 创建 Acceptor 数组，循环创建并启动Acceptor。默认为1个
    2. 创建并启动 AsyncTimeout（实现Runnable接口）
+
+
+
+```
+org.apache.tomcat.util.net.NioEndpoint # startInternal
+
+	1. 创建线程池：org.apache.tomcat.util.net.AbstractEndpoint # createExecutor
+	2. 连接限制：initializeConnectionLatch 默认为10000，连接超过10000就会被拒绝
+	3. 创建 Poller 数组
+	4. 创建并启动 Acceptor
+
+
+请求处理流程
+	1. Acceptor 拿到 SocketChannel
+	2. 将SocketChannel包装成 NioChannel，之后将 NioChannel 包装成 PollerEvent， 之后注册到 Poller（默认有两个） 的事件队列中
+	3. Poller 中有循环线程在监听该队列，如果队列中有任务时会从队列中取出任务，执行任务的run方法。该方法中会将 SocketChannel 注册到当前 Poller 的 selector 中，监听读事件，attachement 是 NioSocketWrapper
+	4. Poller 的循环线程还会监听 selector 上的事件。当有事件就绪时会将事件封装成 SocketProcessor 交由线程池处理
+	5. SocketProcessor 中会获取 AbstractProtocol 调用其 process 处理具体的Socket
+	6. 处理方式是获取具体协议的Processor来处理socket。比如获取 Http11Processor 来处理 Socket
+```
 
 
 

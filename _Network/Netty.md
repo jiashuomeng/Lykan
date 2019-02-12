@@ -366,3 +366,79 @@ io.netty.bootstrap.ServerBootstrap.ServerBootstrapAcceptor # channelRead
 #### 出现异常
 
 ##### exceptionCaught
+
+
+
+
+
+```
+Netty启动
+
+    1. ServerBootstrap对象创建
+    2. 设置parentEventLoopGroup、childEventLoopGroup
+    3. 设置option参数，如backlog
+    4. 设置handler、childHandler
+    5. 监听端口
+    6. 容器关闭释放资源
+
+监听端口
+
+    1. 创建Channel，比如 NioServerSocketChannel
+
+    2. 初始化chanel，给channel赋值，具体设置option、attribute、handler等
+        pipeline.addLast()接收的是实现 ChannelHandler 接口的实例。这种实例分两种一种是直接实现该接口的，直接包装成 DefaultChannelHandlerContext 加到链表中就结束了，还有一种是 ChannelInitializer 的子类。子类中重写  void initChannel(NioServerSocketChannel ch) 方法。方法中使用ch.pipeline().addLast()来添加 handler。这种形式的原理是ChannelInitializer实现了ChannelHandler的 handlerAdded 方法，在调用 handlerAdded 方法时，该方法调用了initChannel来完成功能，值得一提的是 initChannel 在执行完之后会将自身（ChannelInitializer）从链表中移除
+
+    3. 注册
+        - 以上流程都是主线程执行的，注册流程由BOSS线程驱动
+        - 将 Channel 注册到Selector上，Selector 是 EventLoop 的组件，在 EventLoop 中循环处理 Selector事件。注册时会将当前的 channel 作为 attachment 传入。返回 selectionKey
+        - 目前的pipeline（channel中的组件）只有head、ChannelInitializer、tail
+          需要将 ChannelInitializer 切换至相应的Handler。
+          具体会向 pipeline 中增加启动时设置的handler（不是childHandler）和 ServerBootstrapAcceptor。
+          有 connect 请求时 ServerBootstrapAcceptor会分发给具体的childEventLoop去处理读写
+        - safeSetSuccess(promise); 触发 Promise 的 Listener。监听器有一个，用于绑定ip开始监听端口。
+        - pipeline.fireChannelRegistered(); 默认无动作
+
+    4. 端口监听
+        - 触发时机一般是在3中的 safeSetSuccess中，之所以是一般是因为，如果在注册完之后会同步调用bind()。Listener和同步的实现效果是相同的。都会用 EventLoop 来驱动 bind()事件
+        - bind的调用顺序
+            channel -> pipeline -> tail -> ... head -> unsafe。unsafe中有两个重要的步骤
+            1. doBind(localAddress)， 给channel指定本地ip地址和backlog
+            2. pipeline.fireChannelActive(); head 中会先放行 fireChannelActive ，当执行完之后会执行read操作。
+                read 执行顺序：channel -> pipeline -> tail -> ... -> head -> unsafe
+                具体在 AbstractNioChannel # doBeginRead 中开始监听端口
+
+
+
+
+
+处理accept事件
+
+	- NioEventLoop 创建成功后会开启一个循环任务。该任务会去循环检测：
+		1. 任务队列中是否有任务，如果有任务则消费掉
+		2. Selector是否有就绪事件。默认 select 等待 1000ms
+	- 有就绪事件时，从 SelectionKey 中拿到 NioServerSocketChannel 开始处理。具体是：unsafe.read();
+	- 从 ServerSocketChannel 中获取 SocketChannel。执行 pipeline.fireChannelRead(channel)进行处理
+		- 最终会到 ServerBootstrapAcceptor 的 channelRead
+		- ServerBootstrapAcceptor 封装了childHandler 和 childEventLoopGroup
+		- 选取 childEventLoop，注册 SocketChannel。注册流程由 childEventLoop 驱动
+			- 将 SocketChannel 注册到 childEventLoop 的Selector上，并将当前的 NioSocketChannel作为attachment传入
+			- 创建责任链，创建过程由ServerBootstrap创建时指定
+			- safeSetSuccess(promise);
+			- pipeline.fireChannelRegistered();
+			- pipeline.fireChannelActive(); head先放行，之后调用unsafe，给selectKey注册read事件
+
+	- pipeline.fireChannelReadComplete();
+
+io.netty.channel.nio.AbstractNioMessageChannel.NioMessageUnsafe # read
+
+
+
+OP_READ = 1
+OP_WRITE = 4
+OP_CONNECT = 8
+OP_ACCEPT = 16
+
+
+
+```
+

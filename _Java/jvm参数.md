@@ -22,7 +22,6 @@
 -XX:+PrintGCDateStamps #  打印gc触发时间
 -XX:GCLogFileSize=100M # 控制GC日志文件的大小 
 -Xloggc:/data/logs/deploy/gc.log 
--Djava.awt.headless=true 
 -Djava.net.preferIPv4Stack=true  # 获取IPv4的地址，java网络接口只获取ipv4地址不获取ipv6地址
 -Dfile.encoding=UTF-8 
 -Dspring.profiles.active=prod
