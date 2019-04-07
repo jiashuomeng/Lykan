@@ -4,7 +4,7 @@
 /deploy-1.0.0.jar 
 -Xms4096m #  初始堆内存大小
 -Xmx4096m #  最大堆内存大小
--Xmn2072m #  年轻代内存大小，推荐整个对内存的3/8
+-Xmn1536m #  年轻代内存大小，推荐整个堆内存的3/8
 -XX:MetaspaceSize=1024m #  Metaspace扩容时触发FullGC的初始化阈值，也是最小的阈值。过小会频繁FGC，甚至OOM
 -XX:MaxMetaspaceSize=2048m #  元数据可使用的最大空间
 -XX:SurvivorRatio=8 #  survivor 和 Eden 区比例为1:1:8
@@ -84,3 +84,6 @@ org.apache.rocketmq.broker.BrokerStartup -n 192.168.56.101:9876 -c ./conf/broker
 org.apache.rocketmq.namesrv.NamesrvStartup
 ```
 
+> jstat -gc 25773 1s 
+
+应用启动10天左右，1.2万次YGC，花费154s。无full gc
