@@ -18,3 +18,5 @@ git commit -m "`date`"
 git push origin `git_branch`
 
 git push open `git_branch`
+
+git push lykan  `git_branch`
